@@ -44,7 +44,7 @@ end
 -- cross platform symbolic link creation
 function symlink(target, link)
 	if os.host() == 'windows' then
-		os.execute('cmd.exe /c mklink /d ' .. link .. ' ' .. target)
+		os.execute('cmd.exe /c mklink /d "' .. link .. '" "' .. target .. '"')
 	else
 		os.execute('ln -s -f ' .. target .. ' ' .. link)
 	end
@@ -76,83 +76,113 @@ end
 --
 function m.vscode_tasks(prj)
 
-	m.files(prj)
+	-- m.files(prj)
 
 	p.utf8()
 	--TODO task per project
 	_p('{')
 		_p(1, '"version": "2.0.0",')
-		_p(1, '"tasks": [{')
-			_p(2, '"type": "shell",')
-			_p(2, '"label": "%s",', build_task_name)
+		_p(1, '"tasks": [')
+		first_cfg = true
+		for cfg in project.eachconfig(prj) do
+		local plat = p.vstudio.projectPlatform(cfg)
+		local arch = p.vstudio.archFromConfig(cfg, true)
+		if first_cfg then
+			_p(2, '{')
+			first_cfg = false
+		else
+			_p(2, ',{')
+		end
+			_p(3, '"type": "shell",')
+			_p(3, '"label": "%s",', build_task_name .. ' ' .. plat .. ' ' .. arch)
+			_p(3, '"command": "msbuild",')
 	-- check if ninja is used, otherwise default to make.
-	if os.isfile(prj.location .. '/build.ninja') then
-			_p(2, '"command": "clear && time ninja -j$(nproc)",')
-	else
-			_p(2, '"command": "clear && time make %s -r -j$(nproc)",', prj.name)
-	end
-			_p(2, '"args": [],')
-			_p(2, '"options": {')
-				_p(3, '"cwd": "${workspaceFolder}/../"')
-			_p(2, '},')
-			_p(2, '"problemMatcher": [')
-				_p(3, '"$gcc"')
-			_p(2, '],')
-			_p(2, '"group": {')
-				_p(3, '"kind": "build",')
-				_p(3, '"isDefault": true')
-			_p(2, '}')
-		_p(1, '}]')
+	-- if os.isfile(prj.location .. '/build.ninja') then
+	-- 		_p(2, '"command": "clear && time ninja -j$(nproc)",')
+	-- else
+	-- 		_p(2, '"command": "clear && time make %s -r -j$(nproc)",', prj.name)
+	-- end
+			_p(3, '"args": [')
+				_p(4, '"%s.vcxproj",', prj.location .. '/' .. prj.name)
+				_p(4, '"/m",')
+				_p(4, '"/p:Configuration=%s",', plat)
+				_p(4, '"/p:Platform=%s"', arch)
+			_p(3, '],')
+			_p(3, '"options": {')
+				_p(4, '"cwd": "${workspaceFolder}/../"')
+			_p(3, '},')
+			_p(3, '"problemMatcher": [')
+				_p(4, '"$msCompile"')
+			_p(3, '],')
+			_p(3, '"presentation": {')
+				_p(4, '"reveal": "silent"')
+			_p(3, '},')
+			_p(3, '"group": {')
+				_p(4, '"kind": "build",')
+				_p(4, '"isDefault": true')
+			_p(3, '}')
+		_p(2, '}')
+		end
+		_p(1, ']')
 	_p('}')
 end
-
 
 --
 -- Project: Generate vscode launch.json.
 --
 function m.vscode_launch(prj)
 	p.utf8()
+
+	-- show(prj)
+	-- print()
+
 	_p('{')
 		_p(1, '"version": "0.2.0",')
 		_p(1, '"configurations": [')
 		local first_cfg = true
 		for cfg in project.eachconfig(prj) do
+		local plat = p.vstudio.projectPlatform(cfg)
+		local arch = p.vstudio.archFromConfig(cfg, true)
 		if first_cfg then
 			first_cfg = false
 			_p(1, '{')
 		else
 			_p(1, ',{')
 		end
-			_p(2, '"name": "%s: Build and debug",', prj.name)
-			_p(2, '"type": "cppdbg",')
+			_p(2, '"name": "%s: %s - %s",', prj.name, plat, arch)
+			_p(2, '"type": "cppvsdbg",')
 			_p(2, '"request": "launch",')
 			_p(2, '"program": "%s/%s",', cfg.buildtarget.directory, prj.name)
 			_p(2, '"args": [],')
 			_p(2, '"stopAtEntry": false,')
-			_p(2, '"cwd": "${workspaceFolder}/../",')
+			_p(2, '"cwd": "%s",', prj.location)
 			_p(2, '"environment": [],')
-			_p(2, '"externalConsole": false,')
-			_p(2, '"MIMode": "gdb",')
-			_p(2, '"setupCommands": [')
-				_p(3, '{')
-				_p(3, '"description": "Enable pretty-printing for gdb",')
-				_p(3, '"text": "-enable-pretty-printing",')
-				_p(3, '"ignoreFailures": true')
-				_p(3, '},')
-				_p(3, '{')
-				_p(3, '"description": "Enable break on all-exceptions",')
-				_p(3, '"text": "catch throw",')
-				_p(3, '"ignoreFailures": true')
-				_p(3, '}')
-			_p(2, '],')
-			_p(2, '"preLaunchTask": "%s",', build_task_name)
-			_p(2, '"miDebuggerPath": "/usr/bin/gdb"')
+			-- _p(2, '"externalConsole": false,')
+			-- _p(2, '"MIMode": "gdb",')
+			-- _p(2, '"setupCommands": [')
+			-- 	_p(3, '{')
+			-- 	_p(3, '"description": "Enable pretty-printing for gdb",')
+			-- 	_p(3, '"text": "-enable-pretty-printing",')
+			-- 	_p(3, '"ignoreFailures": true')
+			-- 	_p(3, '},')
+			-- 	_p(3, '{')
+			-- 	_p(3, '"description": "Enable break on all-exceptions",')
+			-- 	_p(3, '"text": "catch throw",')
+			-- 	_p(3, '"ignoreFailures": true')
+			-- 	_p(3, '}')
+			-- _p(2, '],')
+			_p(2, '"preLaunchTask": "%s",', build_task_name .. ' ' .. plat .. ' ' .. arch)
 		_p(1, '}')
 		end
 		_p(1, ']')
 	_p('}')
 end
 
+function show(o)
+	for k,v in pairs(o) do
+		print(k,v)
+	end
+end
 
 --
 -- Project: Generate vscode c_cpp_properties.json.
@@ -183,14 +213,15 @@ function m.vscode_c_cpp_properties(prj)
 					end
 				end
 			_p(2, '],')
-			_p(2, '"compilerPath": "/usr/bin/g++",') --TODO premake toolset
+			_p(2, '"compilerPath": "cl.exe",')
 			if cfg.cdialect ~= nil then
 				_p(2, '"cStandard": "%s",', cfg.cdialect:lower())
 			end
 			if cfg.cppdialect ~= nil then
-				_p(2, '"cppStandard": "%s",', cfg.cppdialect:lower())
+				_p(2, '"cppStandard": "c++23",')
+				-- _p(2, '"cppStandard": "%s",', cfg.cppdialect:lower())
 			end
-			_p(2, '"intelliSenseMode": "gcc-x64",') --TODO premake toolset
+			_p(2, '"intelliSenseMode": "windows-msvc-x64",')
 			_p(2, '"compilerArgs": [')
 				-- force includes
 				local toolset = m.getcompiler(cfg)
