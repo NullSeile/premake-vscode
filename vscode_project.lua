@@ -157,6 +157,7 @@ function m.vscode_launch(prj)
 			_p(2, '"stopAtEntry": false,')
 			_p(2, '"cwd": "%s",', prj.location)
 			_p(2, '"environment": [],')
+			_p(2, '"console": "externalTerminal",')
 			-- _p(2, '"externalConsole": false,')
 			-- _p(2, '"MIMode": "gdb",')
 			-- _p(2, '"setupCommands": [')
@@ -176,12 +177,6 @@ function m.vscode_launch(prj)
 		end
 		_p(1, ']')
 	_p('}')
-end
-
-function show(o)
-	for k,v in pairs(o) do
-		print(k,v)
-	end
 end
 
 --
